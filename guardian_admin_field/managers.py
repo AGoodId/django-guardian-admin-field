@@ -99,3 +99,7 @@ class GroupPermManager(RelatedField):
   def save_form_data(self, instance, data):
     for group in data:
       assign(self.codename, group, obj=instance)
+
+
+from south.modelsinspector import add_ignored_fields
+add_ignored_fields(["^guardian_admin_field\.managers"])
