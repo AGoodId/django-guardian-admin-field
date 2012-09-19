@@ -100,6 +100,9 @@ class GroupPermManager(RelatedField):
     for group in data:
       assign(self.codename, group, obj=instance)
 
+  def bulk_related_objects(self, new_objs, using):
+    return []
+
 
 from south.modelsinspector import add_ignored_fields
 add_ignored_fields(["^guardian_admin_field\.managers"])
