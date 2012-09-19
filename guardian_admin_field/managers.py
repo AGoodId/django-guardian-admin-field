@@ -97,6 +97,8 @@ class GroupPermManager(RelatedField):
     return []
 
   def save_form_data(self, instance, data):
+    self.through.objects.filter(**{'object_pk': instance.pk,
+      'permission__codename': self.codename}).delete()
     for group in data:
       assign(self.codename, group, obj=instance)
 
