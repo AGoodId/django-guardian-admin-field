@@ -97,10 +97,19 @@ class GroupPermManager(RelatedField):
     return []
 
   def save_form_data(self, instance, data):
+    # Clear any permissions set
     self.through.objects.filter(**{'object_pk': instance.pk,
       'permission__codename': self.codename}).delete()
+
+    # Save the new permissions
     for group in data:
       assign(self.codename, group, obj=instance)
+
+    # Update the cached boolean
+    new_group_permissions = len(data) > 0
+    if instance.group_permissions != new_group_permissions:
+      instance.group_permissions = new_group_permissions
+      instance.save()
 
   def bulk_related_objects(self, new_objs, using):
     return []
