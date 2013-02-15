@@ -40,6 +40,15 @@ class GroupPermManager(RelatedField):
     self.creation_counter = models.Field.creation_counter
     models.Field.creation_counter += 1
 
+  def __get__(self, instance, model):
+    if instance is not None and instance.pk is None:
+      raise ValueError("%s objects need to have a primary key value "
+          "before you can access their groups." % model.__name__)
+    manager = _GroupPermManager(
+      through=self.through, model=model, instance=instance, codename=self.codename
+    )
+    return manager
+
   def contribute_to_class(self, cls, name):
     self.name = self.column = name
     self.model = cls
@@ -113,6 +122,19 @@ class GroupPermManager(RelatedField):
 
   def bulk_related_objects(self, new_objs, using):
     return []
+
+
+class _GroupPermManager(models.Manager):
+  def __init__(self, through, model, instance, codename):
+    self.through = through
+    self.model = model
+    self.instance = instance
+    self.codename = codename
+
+  def get_query_set(self):
+    group_ids = self.through.objects.filter(object_pk=self.instance.pk,
+        permission__codename=self.codename).values_list('group_id', flat=True)
+    return Group.objects.filter(id__in=group_ids)
 
 
 from south.modelsinspector import add_ignored_fields
