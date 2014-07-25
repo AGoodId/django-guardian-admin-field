@@ -4,6 +4,8 @@ from django.contrib.auth.models import Group
 from django.contrib.contenttypes.generic import GenericRelation
 from django.db import models
 from django.db.models.fields.related import ManyToManyRel, RelatedField, add_lazy_relation
+from django.db.models.related import RelatedObject
+from django.db.models.fields import Field
 from django.forms import fields
 from django.utils.translation import ugettext as _
 
@@ -21,24 +23,13 @@ class GroupPermRel(ManyToManyRel):
     self.through = None
 
 
-class GroupPermManager(RelatedField):
+class GroupPermManager(RelatedField, Field):
   def __init__(self, verbose_name=_("Groups"),
     help_text=_("Who should be able to access this object?"), through=None, blank=False, permission='add'):
+    Field.__init__(self, verbose_name=verbose_name, help_text=help_text, blank=blank, null=True, serialize=False)
     self.permission = permission
     self.through = through or GroupObjectPermission
     self.rel = GroupPermRel()
-    self.verbose_name = verbose_name
-    self.help_text = help_text
-    self.blank = blank
-    self.editable = True
-    self.unique = False
-    self.creates_table = False
-    self.db_column = None
-    self.choices = None
-    self.serialize = False
-    self.null = True
-    self.creation_counter = models.Field.creation_counter
-    models.Field.creation_counter += 1
 
   def __get__(self, instance, model):
     if instance is not None and instance.pk is None:
@@ -81,6 +72,7 @@ class GroupPermManager(RelatedField):
       self.through is None
     )
     self.rel.to = self.through._meta.get_field("group").rel.to
+    self.related = RelatedObject(self.through, cls, self)
     if self.use_gfk:
       groups = GenericRelation(self.through)
       groups.contribute_to_class(cls, "groups")
@@ -119,6 +111,9 @@ class GroupPermManager(RelatedField):
     if instance.group_permissions != new_group_permissions:
       instance.group_permissions = new_group_permissions
       instance.save()
+
+  def related_query_name(self):
+    return self.model._meta.module_name
 
   def bulk_related_objects(self, new_objs, using):
     return []
