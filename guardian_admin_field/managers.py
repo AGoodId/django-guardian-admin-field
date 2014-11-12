@@ -4,14 +4,11 @@ from django.contrib.auth.models import Group
 from django.contrib.contenttypes.generic import GenericRelation
 from django.db import models
 from django.db.models.fields.related import ManyToManyRel, RelatedField, add_lazy_relation
-from django.forms import fields
-from django.utils.translation import ugettext as _
-from django.utils.functional import curry
-from django.db.backends import util
-from django.db import connection, connections, router
-
 from django.db.models.related import RelatedObject
 from django.db.models.fields import Field
+from django.forms import fields
+from django.utils.translation import ugettext_lazy as _
+
 
 from guardian.models import GroupObjectPermission
 from guardian.shortcuts import assign
@@ -25,15 +22,30 @@ class GroupPermRel(ManyToManyRel):
     self.multiple = True
     self.through = None
 
-
 class GroupPermManager(RelatedField, Field):
   def __init__(self, verbose_name=_("Groups"),
-    help_text=_("Who should be able to access this object?"), through=None, blank=False, permission='add', **kwargs):
+    help_text=_("Who should be able to access this object?"), through=None, blank=False, permission='add'):
     Field.__init__(self, verbose_name=verbose_name, help_text=help_text, blank=blank, null=True, serialize=False)
     self.permission = permission
     self.through = through or GroupObjectPermission
     self.rel = GroupPermRel()
-    self.db_table = kwargs.pop('db_table', None)
+
+  def m2m_target_field_name(self):
+    return self.model._meta.pk.name
+
+  def m2m_reverse_target_field_name(self):
+    return self.rel.to._meta.pk.name
+
+  def m2m_column_name(self):
+    if self.use_gfk:
+      return self.through._meta.virtual_fields[0].fk_field
+    return self.through._meta.get_field('content_object').column
+
+  def db_type(self, connection=None):
+    return None
+
+  def m2m_db_table(self):
+    return self.through._meta.db_table
 
   def __get__(self, instance, model):
     if instance is not None and instance.pk is None:
@@ -59,7 +71,7 @@ class GroupPermManager(RelatedField, Field):
     
     # Store the opts for related_query_name()
     self.opts = cls._meta
-    self.m2m_db_table = curry(self._get_m2m_db_table, cls._meta)
+    
     if not cls._meta.abstract:
       if isinstance(self.through, basestring):
         def resolve_related_class(field, model, cls):
@@ -71,16 +83,6 @@ class GroupPermManager(RelatedField, Field):
       else:
         self.post_through_setup(cls)
 
-  def _get_m2m_db_table(self, opts):
-    "Function that can be curried to provide the m2m table name for this relation"
-    if self.rel.through is not None:
-      return self.rel.through._meta.db_table
-    elif self.db_table:
-      return self.db_table
-    else:
-      return util.truncate_name('%s_%s' % (opts.db_table, self.name),
-                                  connection.ops.max_name_length())
-
   def post_through_setup(self, cls):
     self.use_gfk = (
       self.through is None
@@ -90,9 +92,6 @@ class GroupPermManager(RelatedField, Field):
     if self.use_gfk:
       groups = GenericRelation(self.through)
       groups.contribute_to_class(cls, "groups")
-
-  def related_query_name(self):
-    return self.model._meta.module_name
 
   def formfield(self, form_class=forms.ModelMultipleChoiceField, **kwargs):
     qs = Group.objects.all()
@@ -128,6 +127,9 @@ class GroupPermManager(RelatedField, Field):
     if instance.group_permissions != new_group_permissions:
       instance.group_permissions = new_group_permissions
       instance.save()
+
+  def related_query_name(self):
+    return self.model._meta.module_name
 
   def bulk_related_objects(self, new_objs, using):
     return []
