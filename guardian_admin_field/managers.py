@@ -60,7 +60,7 @@ class GroupPermManager(RelatedField, Field):
     return manager
 
   def contribute_to_class(self, cls, name):
-    self.name = self.column = name
+    self.name = self.column = self.attname = name
     self.model = cls
     
     # Put together permission codename using the models name
