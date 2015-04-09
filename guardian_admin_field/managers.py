@@ -4,7 +4,10 @@ from django.contrib.auth.models import Group
 from django.contrib.contenttypes.generic import GenericRelation
 from django.db import models
 from django.db.models.fields.related import ManyToManyRel, RelatedField, add_lazy_relation
-from django.db.models.related import RelatedObject
+try:
+  from django.db.models.related import RelatedObject
+except:
+  RelatedObject = None
 from django.db.models.fields import Field
 from django.forms import fields
 from django.utils.translation import ugettext_lazy as _
@@ -88,7 +91,8 @@ class GroupPermManager(RelatedField, Field):
       self.through is None
     )
     self.rel.to = self.through._meta.get_field("group").rel.to
-    self.related = RelatedObject(self.through, cls, self)
+    if RelatedObject is None:
+      self.related = RelatedObject(self.through, cls, self)
     if self.use_gfk:
       groups = GenericRelation(self.through)
       groups.contribute_to_class(cls, "groups")
