@@ -3,10 +3,11 @@ from django.contrib.admin import widgets
 from django.contrib.auth.models import Group
 from django.contrib.contenttypes.generic import GenericRelation
 from django.db import models
+from django import VERSION
 from django.db.models.fields.related import ManyToManyRel, RelatedField, add_lazy_relation
-try:
+if VERSION < (1, 8):
   from django.db.models.related import RelatedObject
-except:
+else:
   RelatedObject = None
 from django.db.models.fields import Field
 from django.forms import fields
@@ -15,6 +16,13 @@ from django.utils.translation import ugettext_lazy as _
 
 from guardian.models import GroupObjectPermission
 from guardian.shortcuts import assign
+
+
+def _model_name(model):
+  if VERSION < (1, 7):
+    return model._meta.module_name
+  else:
+    return model._meta.model_name
 
 
 class GroupPermRel(ManyToManyRel):
@@ -91,7 +99,7 @@ class GroupPermManager(RelatedField, Field):
       self.through is None
     )
     self.rel.to = self.through._meta.get_field("group").rel.to
-    if RelatedObject is None:
+    if RelatedObject is not None:
       self.related = RelatedObject(self.through, cls, self)
     if self.use_gfk:
       groups = GenericRelation(self.through)
@@ -133,7 +141,7 @@ class GroupPermManager(RelatedField, Field):
       instance.save()
 
   def related_query_name(self):
-    return self.model._meta.module_name
+    return _model_name(self.model)
 
   def bulk_related_objects(self, new_objs, using):
     return []
