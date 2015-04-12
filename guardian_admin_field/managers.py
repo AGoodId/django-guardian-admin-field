@@ -26,12 +26,13 @@ def _model_name(model):
 
 
 class GroupPermRel(ManyToManyRel):
-  def __init__(self):
+  def __init__(self, field):
     self.related_name = None
     self.limit_choices_to = {}
     self.symmetrical = True
     self.multiple = True
     self.through = None
+    self.field = field
 
 class GroupPermManager(RelatedField, Field):
   def __init__(self, verbose_name=_("Groups"),
@@ -39,7 +40,7 @@ class GroupPermManager(RelatedField, Field):
     Field.__init__(self, verbose_name=verbose_name, help_text=help_text, blank=blank, null=True, serialize=False)
     self.permission = permission
     self.through = through or GroupObjectPermission
-    self.rel = GroupPermRel()
+    self.rel = GroupPermRel(self)
 
   def m2m_target_field_name(self):
     return self.model._meta.pk.name
@@ -162,5 +163,6 @@ class _GroupPermManager(models.Manager):
     return Group.objects.filter(id__in=group_ids)
 
 
-from south.modelsinspector import add_ignored_fields
-add_ignored_fields(["^guardian_admin_field\.managers"])
+if VERSION < (1, 7):
+  from south.modelsinspector import add_ignored_fields
+  add_ignored_fields(["^guardian_admin_field\.managers"])
