@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.admin import widgets
 from django.contrib.auth.models import Group
-from django.contrib.contenttypes.generic import GenericRelation
+from django.contrib.contenttypes.fields import GenericRelation
 from django.db import models
 from django import VERSION
 from django.db.models.fields.related import ManyToManyRel, RelatedField, add_lazy_relation
